@@ -47,7 +47,7 @@ public class KThread {
 	    tcb = new TCB();
 	}	    
 	else {
-	    readyQueue = ThreadedKernel.scheduler.newThreadQueue(false);
+        readyQueue = ThreadedKernel.scheduler.newThreadQueue(false);
 	    readyQueue.acquire(this);	    
 
 	    currentThread = this;
@@ -184,7 +184,18 @@ public class KThread {
     public static void finish() {
 	Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
 	
-	Machine.interrupt().disable();
+    Machine.interrupt().disable();
+    //Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
+    //System.out.printf("The wait_queue d\n", currentThread.wait_join_Queue != null);
+    Lib.assertTrue(currentThread.wait_join_Queue != null);
+    ThreadQueue tmp_q = currentThread.wait_join_Queue;
+    while (true)
+    {
+        KThread thread = tmp_q.nextThread();
+        if (thread == null)
+            break;
+        thread.ready();
+    }
 
 	Machine.autoGrader().finishingCurrentThread();
 
@@ -275,8 +286,14 @@ public class KThread {
     public void join() {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
 
-	Lib.assertTrue(this != currentThread);
-
+    Lib.assertTrue(this != currentThread);
+    boolean intStatus = Machine.interrupt().disable();
+    if (status != statusFinished)
+    {
+	    wait_join_Queue.waitForAccess(currentThread);
+        currentThread.sleep();
+    }
+    Machine.interrupt().restore(intStatus);
     }
 
     /**
@@ -397,14 +414,33 @@ public class KThread {
 	private int which;
     }
 
+
+    private static void joinTest1 () {
+        KThread child1 = new KThread( new Runnable () {
+            public void run() {
+                System.out.println("I (heart) Nachos!");
+            }
+            });
+        child1.setName("child1").fork();
+        for (int i = 0; i < 5; i++) {
+            System.out.println ("busy...");
+            KThread.currentThread().yield();
+        }
+    
+        child1.join();
+        System.out.println("After joining, child1 should be finished.");
+        System.out.println("is it? " + (child1.status == statusFinished));
+        Lib.assertTrue((child1.status == statusFinished), " Expected child1 to be finished.");
+        }
+
     /**
      * Tests whether this module is working.
      */
     public static void selfTest() {
 	Lib.debug(dbgThread, "Enter KThread.selfTest");
-	
-	new KThread(new PingTest(1)).setName("forked thread").fork();
-	new PingTest(0).run();
+	joinTest1();
+	//new KThread(new PingTest(1)).setName("forked thread").fork();
+    //new PingTest(0).run();
     }
 
     private static final char dbgThread = 't';
@@ -431,6 +467,7 @@ public class KThread {
     private String name = "(unnamed thread)";
     private Runnable target;
     private TCB tcb;
+    private ThreadQueue wait_join_Queue = ThreadedKernel.scheduler.newThreadQueue(false);;
 
     /**
      * Unique identifer for this thread. Used to deterministically compare
