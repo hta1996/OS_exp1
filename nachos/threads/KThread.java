@@ -185,8 +185,8 @@ public class KThread {
 	Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
 	
     Machine.interrupt().disable();
-    //Lib.debug(dbgThread, "Finishing thread: " + currentThread.toString());
-    //System.out.printf("The wait_queue d\n", currentThread.wait_join_Queue != null);
+
+    //###
     Lib.assertTrue(currentThread.wait_join_Queue != null);
     ThreadQueue tmp_q = currentThread.wait_join_Queue;
     while (true)
@@ -201,8 +201,7 @@ public class KThread {
 
 	Lib.assertTrue(toBeDestroyed == null);
 	toBeDestroyed = currentThread;
-
-
+    //###
 	currentThread.status = statusFinished;
 	
 	sleep();
@@ -287,6 +286,7 @@ public class KThread {
 	Lib.debug(dbgThread, "Joining to thread: " + toString());
 
     Lib.assertTrue(this != currentThread);
+    //####
     boolean intStatus = Machine.interrupt().disable();
     if (status != statusFinished)
     {
@@ -415,32 +415,37 @@ public class KThread {
     }
 
 
-    private static void joinTest1 () {
-        KThread child1 = new KThread( new Runnable () {
-            public void run() {
+    private static void join_test1()
+    {
+        KThread child1 = new KThread( new Runnable ()
+        {
+            public void run()
+            {
                 System.out.println("I (heart) Nachos!");
             }
-            });
+        }
+        );
         child1.setName("child1").fork();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 5; i++)
+        {
             System.out.println ("busy...");
             KThread.currentThread().yield();
         }
-    
         child1.join();
         System.out.println("After joining, child1 should be finished.");
         System.out.println("is it? " + (child1.status == statusFinished));
         Lib.assertTrue((child1.status == statusFinished), " Expected child1 to be finished.");
-        }
+    }
 
     /**
      * Tests whether this module is working.
      */
-    public static void selfTest() {
-	Lib.debug(dbgThread, "Enter KThread.selfTest");
-	joinTest1();
-	//new KThread(new PingTest(1)).setName("forked thread").fork();
-    //new PingTest(0).run();
+    public static void selfTest()
+    {
+        Lib.debug(dbgThread, "Enter KThread.selfTest");
+        join_test1();
+        //new KThread(new PingTest(1)).setName("forked thread").fork();
+        //new PingTest(0).run();
     }
 
     private static final char dbgThread = 't';
