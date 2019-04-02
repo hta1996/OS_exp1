@@ -66,6 +66,5 @@ public class Communicator {
     private Lock lock;
     private Condition2 S,L;
     private boolean sending;
-    private int mess;
-    private cntL=0;
+    private int mess,cntL=0;
 }
