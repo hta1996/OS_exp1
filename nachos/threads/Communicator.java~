@@ -113,7 +113,7 @@ public class Communicator {
 		        {
 		            System.out.println("ComTest "+comID+" listening to... "+i);
 		            int word=comm.listen();
-		            System.out.println("ComTest "+comID+" heard word "+word);
+		            System.out.println("ComTest " + comID + " heard word " + word);
 		        }
 		    }		    
 		    if (comID==0)
