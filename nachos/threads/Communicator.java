@@ -63,60 +63,6 @@ public class Communicator {
     private Condition2 S,L,flag;
     private Integer mess;
     
-    
-    /*public static void selfTest()
-	{
-		KThread t1 = new KThread(new Comm(1));
-		KThread t2 = new KThread(new Comm(2));
-		KThread t3 = new KThread(new Comm(3));
-		KThread t4 = new KThread(new Comm(4));
-		t1.fork();
-		t2.fork();
-		t3.fork();
-		t4.fork();	
-		//run the test
-		System.out.println("-----Communicator Test---------");
-		new Comm(0).run();
-	}
-		
-		
-	protected static class Comm implements Runnable
-	{
-		private int comID;
-		private static Communicator comm=new Communicator();
-	 
-	 // Construct the object. Pass the comID of the thread plus any variables you
-	 // want to share between threads. You may want to pass a KThread as a global
-	 // variable to test join.
-		Comm(int comID) {this.comID = comID;}
-		
-
-		public void run() 
-		{
-		    // Use an if statement to make the different threads execute different
-		    // code.
-		    if(comID==0) 
-		    {
-		        for(int i=0;i<4;i++) 
-		        {
-		            System.out.println("ComTest "+comID+" Speak("+i+")");
-		            comm.speak(i);
-		        }
-		    }
-		    else
-		    {
-		        for(int i=0;i<4;i++) 
-		        {
-		            System.out.println("ComTest "+comID+" listening to... "+i);
-		            int word=comm.listen();
-		            System.out.println("ComTest "+comID+" heard word "+word);
-		        }
-		    }		    
-		    if (comID==0)
-		    	System.out.println("-----Communicator Test Complete-------");
-		    ThreadedKernel.alarm.waitUntil(2000);
-		}
-	}*/
 	protected static class ComTest implements Runnable
 	{
 		private int num;
