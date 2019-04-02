@@ -51,9 +51,9 @@ public class Condition2 {
     public void wake() {
 		Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 		
-		KThread tp=tq.nextThread();
-		boolean intS=Machine.interrupt().disable();
 
+		boolean intS=Machine.interrupt().disable();
+		KThread tp=tq.nextThread();
 		if(tp!=null)tp.ready();
 		Machine.interrupt().restore(intS);
     }
