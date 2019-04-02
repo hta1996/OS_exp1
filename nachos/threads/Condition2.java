@@ -37,7 +37,7 @@ public class Condition2 {
 		conditionLock.release();
 
 		boolean intS=Machine.interrupt().disable();
-		tq=waitForAccess(KThread.currentThread());
+		tq.waitForAccess(KThread.currentThread());
 		KThread.sleep();
 		Machine.interrupt().restore(intS);
 
