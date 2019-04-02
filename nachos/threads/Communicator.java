@@ -1,3 +1,4 @@
+
 package nachos.threads;
 
 import nachos.machine.*;
@@ -18,7 +19,7 @@ public class Communicator {
 		lock=new Lock();
 		S=new Condition2(lock);
 		L=new Condition2(lock);
-		sending=false;
+		flag=new Condition2(lock);
     }
 
     /**
@@ -34,11 +35,10 @@ public class Communicator {
     public void speak(int word)
 	{
 		lock.acquire();
-		while(cntL==0||sending==true)L.sleep();
+		while(mess!=null)S.sleep();
 		mess=word;
-		sending=true;
-		S.wake();
-		cntL--;
+		L.wake();
+		flag.sleep();
 		lock.release();
     }
 
@@ -51,23 +51,20 @@ public class Communicator {
     public int listen() 
     {
     	lock.acquire();
-    	while(sending==false)
-    	{
-    		L.wake();
-    		cntL++;
-    		S.sleep();
-    	}
+    	while(mess==null)L.sleep();
     	int tp=mess;
-    	sending=false;
-    	L.wake();
+    	mess=null;
+    	S.wake();
+    	flag.wake();
     	lock.release();
 		return tp;
     }
     private Lock lock;
-    private Condition2 S,L;
-    private boolean sending;
-    private int mess,cntL=0;
-    public static void selfTest()
+    private Condition2 S,L,flag;
+    private Integer mess;
+    
+    
+    /*public static void selfTest()
 	{
 		KThread t1 = new KThread(new Comm(1));
 		KThread t2 = new KThread(new Comm(2));
@@ -119,5 +116,69 @@ public class Communicator {
 		    	System.out.println("-----Communicator Test Complete-------");
 		    ThreadedKernel.alarm.waitUntil(2000);
 		}
+	}*/
+	protected static class ComTest implements Runnable
+	{
+		private int num;
+		private static Communicator Com=new Communicator();
+		
+		ComTest(int num){this.num = num;}
+		public void run() 
+		{
+			//test1
+		    if(num>0)
+		    {
+		    	for(int i=0;i<4;i++)
+		    	{
+		            System.out.println("Thread "+num+" speak "+i);
+		            Com.speak(i);
+		        }
+		    }else
+		    {
+		    	for(int i=0;i<12;i++)
+		    	{
+		            System.out.println("Thread "+num+ " listening "+i);
+		            int word=Com.listen();
+		            System.out.println("Thread "+num+" heard "+word);
+		        }
+		    }
+		    if(num==0)
+		    	System.out.println("Test 1 finished");
+		    ThreadedKernel.alarm.waitUntil(4096);
+		    
+		    //test2
+		    if(num==0)
+		    {
+		        for(int i=0;i<12;i++)
+		        {
+		            System.out.println("Thread "+num+" speak "+i);
+		            Com.speak(i);
+		        }
+		    } else
+		    {
+		        for(int i=0;i<4;i++)
+		        {
+		            System.out.println("Thread "+num+" listening "+i);
+		            int word=Com.listen();
+		            System.out.println("Thread "+num+" heard "+word);
+		        }
+		    }
+		    
+		    if(num==0)
+		    	System.out.println("Test 1 finished");
+		    ThreadedKernel.alarm.waitUntil(4096);
+		}
+	}
+
+	public static void selfTest() {
+		KThread thread1 = new KThread(new ComTest(1));
+		KThread thread2 = new KThread(new ComTest(2));
+		KThread thread3 = new KThread(new ComTest(3));
+		thread1.fork();
+		thread2.fork();
+		thread3.fork();
+		new ComTest(0).run();
 	}
 }
+
+
