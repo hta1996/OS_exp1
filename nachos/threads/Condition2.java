@@ -51,9 +51,9 @@ public class Condition2 {
     public void wake() {
 		Lib.assertTrue(conditionLock.isHeldByCurrentThread());
 		
-		KThread tp=tq.nextThread();
-		boolean intS=Machine.interrupt().disable();
 
+		boolean intS=Machine.interrupt().disable();
+		KThread tp=tq.nextThread();
 		if(tp!=null)tp.ready();
 		Machine.interrupt().restore(intS);
     }
@@ -74,7 +74,105 @@ public class Condition2 {
 		}
 		Machine.interrupt().restore(intS);
     }
+	public static void cond2test()
+	{     //used for testing wake and wakeall
+    	System.out.println("--------------Testing Condition 2 ------------------");
+       
+       //Variables for testing functions
+       final Lock lock = new Lock();
+       final Condition2 con2 = new Condition2(lock);
+       
+       KThread sleep = new KThread(new Runnable()
+       {
+       	//Test 1: Sleep
+      	public void run()
+       	{
+    	  //get the Lock
+    	   lock.acquire();
+    	   
+    	   System.out.println("TESTING SLEEP"); 
+    	   System.out.println("Test 1:\n...Going to sleep.....\n");
+    	   con2.sleep();
+    	   System.out.println("Test 1 Complete: Woke up!\n");
+    	   lock.release();
+    	 }
+       
+    	});
+       
+       sleep.fork();
+      
+		KThread wake =	new KThread(new Runnable()
+		{
+		//Test 2: Wake
+           public void run()
+           {
+        	   lock.acquire();
+        	   System.out.println("TESTING WAKE"); 
+               System.out.println("Test 2:\n...Waking a thread...\n");
+               con2.wake();      
+			   System.out.println("Test 2 Complete: Waking Up!");
+			   lock.release();
+			} 
+		});
+		wake.fork();
+		sleep.join();
+		
+		System.out.println("\nTEST 3: SLEEP AND WAKEALL");
+		KThread sleep1 =	new KThread(new Runnable()
+		{
+		//Test 3: Wake All sleeping thread 1
+           public void run()
+           {
+        	   lock.acquire();
+               System.out.println("\n...Sleep1 going to sleep...\n");
+               con2.sleep();      
+				System.out.println("Test 3: Sleep1 waking up!");
+				lock.release();
+       } } );
+		sleep1.fork();
+		
+		KThread sleep2 =	new KThread(new Runnable()
+		{
+		//Test 3: Wake All sleeping thead 2
+           public void run()
+           {
+        	   lock.acquire();
+               System.out.println("\n...Sleep2 going to sleep...\n");
+               con2.sleep();      
+				System.out.println("Test 3: Sleep2 waking up!");
 
+				System.out.println("Test 3 Complete: Everyone is awake!");
+				lock.release();
+       } } );
+		sleep2.fork();
+		
+		
+		KThread wakeall =	new KThread(new Runnable()
+		{
+		//Test 3: Wake all
+           public void run()
+           {
+        	   lock.acquire();
+        	   System.out.println("TESTING WAKEALL"); 
+               System.out.println("\n...Waking all sleeping threads...\n");
+               con2.wakeAll();    
+				lock.release();
+       } } );
+		wakeall.fork();
+
+
+	}
+
+    /**
+     * Tests whether this module is working.
+     */
+    public static void selfTest() {
+		//Lib.debug(dbgThread, "Enter KThread.selfTest");
+		//joinTest1();
+		cond2test();
+	//new KThread(new PingTest(1)).setName("forked thread").fork();
+    //new PingTest(0).run();
+    }
     private Lock conditionLock;
     private ThreadQueue tq;
 }
