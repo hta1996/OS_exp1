@@ -474,7 +474,7 @@ public class KThread {
     private String name = "(unnamed thread)";
     private Runnable target;
     private TCB tcb;
-    private ThreadQueue wait_join_Queue = ThreadedKernel.scheduler.newThreadQueue(false);;
+    private ThreadQueue wait_join_Queue = ThreadedKernel.scheduler.newThreadQueue(true);
 
     /**
      * Unique identifer for this thread. Used to deterministically compare
