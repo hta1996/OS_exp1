@@ -125,7 +125,6 @@ public class Condition2 {
 		SS1.fork();
 		KThread SS2=new KThread(new Runnable()
 		{
-			//Test 3: Wake All sleeping thead 2
         	public void run()
         	{
         		lock.acquire();
@@ -137,7 +136,6 @@ public class Condition2 {
 		SS2.fork();
 		KThread SS3=new KThread(new Runnable()
 		{
-			//Test 3: Wake all
         	public void run()
         	{
         		lock.acquire();
