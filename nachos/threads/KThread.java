@@ -426,9 +426,17 @@ public class KThread {
         Lib.assertTrue((child.status == statusFinished), " Expected child1 to be finished.");
     }
 
+<<<<<<< HEAD
     /**
      * Tests whether this module is working.
      */
+=======
+	
+    /**
+     * Tests whether this module is working.
+     */
+
+>>>>>>> 584dd0a47023eda2e9203859a411c91bb97e6334
     public static void selfTest()
     {
         Lib.debug(dbgThread, "Enter KThread.selfTest");
@@ -461,7 +469,7 @@ public class KThread {
     private String name = "(unnamed thread)";
     private Runnable target;
     private TCB tcb;
-    private ThreadQueue wait_join_Queue = ThreadedKernel.scheduler.newThreadQueue(false);;
+    private ThreadQueue wait_join_Queue = ThreadedKernel.scheduler.newThreadQueue(true);
 
     /**
      * Unique identifer for this thread. Used to deterministically compare
