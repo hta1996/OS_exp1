@@ -20,9 +20,8 @@ int main()
 	//strcat(prog, ".coff");
 	int i;
     for (i = 1 ; i <= 10; i++)
-    {
         int pid;pid = exec("halt.coff", 0, argv);
-    }
+    
     //printf("Do not run Halt()!!");
     //halt();
     //exit(0);
