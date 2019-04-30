@@ -34,15 +34,16 @@ int main()
   {
   	printf("C: Able to open %s\n", "1.in");
   }
-
+unlink("1.in");
   while ((amount = read(fd, buf, BUFSIZE))>0) {
     printf("C: Write to 1 from fd: amount %d\n", amount);
     write(1, buf, amount);
+     write(fd, buf, amount);
   }
     printf("M: herehere!\n");
 //*
-  unlink(fd);
-  write(1, buf, amount);
+  
+
 //*/
   return 0;
 }
