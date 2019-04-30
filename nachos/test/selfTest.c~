@@ -39,8 +39,10 @@ int main()
     printf("C: Write to 1 from fd: amount %d\n", amount);
     write(1, buf, amount);
   }
+    printf("M: herehere!\n");
 //*
-  close(fd);
+  unlink(fd);
+  write(1, buf, amount);
 //*/
   return 0;
 }

@@ -41,7 +41,8 @@ int main()
   }
     printf("M: herehere!\n");
 //*
-  close(fd);
+  unlink(fd);
+  write(1, buf, amount);
 //*/
   return 0;
 }
