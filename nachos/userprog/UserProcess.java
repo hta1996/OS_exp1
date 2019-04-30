@@ -5,6 +5,8 @@ import nachos.threads.*;
 import nachos.userprog.*;
 
 import java.io.EOFException;
+import java.util.HashMap;
+import java.util.LinkedList;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -26,7 +28,19 @@ public class UserProcess {
 	int numPhysPages = Machine.processor().getNumPhysPages();
 	pageTable = new TranslationEntry[numPhysPages];
 	for (int i=0; i<numPhysPages; i++)
-	    pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+		pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
+		
+	descriptors = new OpenFile[16];
+	boolean inS = Machine.interrupt().disable();
+	count_lock.acquire();
+	PID=count++;
+	count_lock.release();
+	Machine.interrupt().restore(inS);
+
+	stdin = UserKernel.console.openForReading();
+	stdout = UserKernel.console.openForWriting();
+	descriptors[0] = stdin;
+	descriptors[1] = stdout;
     }
     
     /**
@@ -348,7 +362,7 @@ public class UserProcess {
 
 
     private static final int
-        syscallHalt = 0,
+    syscallHalt = 0,
 	syscallExit = 1,
 	syscallExec = 2,
 	syscallJoin = 3,
@@ -387,11 +401,140 @@ public class UserProcess {
      * @param	a3	the fourth syscall argument.
      * @return	the value to be returned to the user.
      */
+
+    /* Problem 3 */
+	private int handleExit(int status)
+	{
+		System.out.println("Exit " + PID + " with " + status);
+		if(parent != null)
+		{
+			parent.status_lock.acquire();
+			parent.children_status.put(PID, status);
+			parent.status_lock.release();
+		}
+		unloadSections();
+		for(int i = 0; i < children.size(); i++)
+		{
+			UserProcess child_i = children.removeFirst();
+			child_i.parent = null;
+		}
+		if(PID == 0) Kernel.kernel.terminate();
+		else UThread.finish();
+		return 0;
+
+	}
+
+	//int exec(char *file, int argc, char *argv[]);
+	private int handleExec(int file_vad, int argc, int argv_vad){
+		//System.out.println("Execute " + file_vad + " "  + argc + " " + argv_vad);
+		if (!(file_vad >= 0 && argc >= 0 && argv_vad >= 0))
+		{
+			Lib.debug(dbgProcess, "EXEC ERROR: Parameters are invalid!");
+			return -1;
+		}
+		String file_name = readVirtualMemoryString(file_vad, 256);
+		if(file_name == null)
+		{
+			Lib.debug(dbgProcess, "EXEC ERROR: No file!");
+			return -1;
+		}
+		if(!file_name.contains(".coff"))
+		{
+			Lib.debug(dbgProcess, "EXEC ERROR: File type Error!");
+			return -1;
+		}
+
+		System.out.println("Execute " + file_name + " "  + argc + " " + argv_vad);
+
+		String[] arg = new String[argc];
+		for (int i = 0; i < argc; i++)
+		{
+			byte[] int_buffer = new byte[4];
+			if(readVirtualMemory(argv_vad + i * 4, int_buffer) != 4)
+			{
+				Lib.debug(dbgProcess, "EXEC ERROR: Load Error!");
+				return -1;
+			}
+			int argv_i = Lib.bytesToInt(int_buffer, 0);
+			String argv = readVirtualMemoryString(argv_vad, 256);
+			if(argv == null)
+			{
+				Lib.debug(dbgProcess, "EXEC ERROR: No argument!");
+				return -1;
+			}
+			arg[i] = argv;
+		}
+		UserProcess child = UserProcess.newUserProcess();
+		if(!child.execute(file_name, arg))
+		{
+			Lib.debug(dbgProcess, "EXEC ERROR: Can not run in a child process!");
+			return -1;
+		}
+		child.parent = this;
+		this.children.add(child);
+		return child.PID;
+	}
+
+	//int join(int processID, int *status);
+	private int handleJoin(int processID, int status_vad)
+	{
+		if (processID < 0 || status_vad < 0)
+		{
+			Lib.debug(dbgProcess, "JOIN ERROR: Parameters are invalid!");
+			return -1;
+		}
+		UserProcess child = null;
+		for(int i = 0; i < children.size(); i++)
+		{
+			if(children.get(i).PID == PID)
+			{
+				child = children.get(i);
+				break;
+			}
+		}
+		if(child == null)
+		{
+			Lib.debug(dbgProcess, "JOIN ERROR: No such child!");
+			return -1;
+		}
+		child.thread.join();
+		child.parent = null;
+		children.remove(child);
+		status_lock.acquire();
+		Integer child_status = children_status.get(child.PID);
+		status_lock.release();
+		if(child_status == null)
+		{
+			Lib.debug(dbgProcess, "JOIN ERROR: No status!");
+			return 0;
+		}
+		else
+		{
+			byte[] int_buffer = new byte[4];
+			int_buffer = Lib.bytesFromInt(child_status);
+			if(writeVirtualMemory(status_vad, int_buffer) == 4)
+				return 1;
+			else
+			{
+				Lib.debug(dbgProcess, "JOIN ERROR: Cannot write status!");
+				return 0;
+			}
+		}
+	}
+	
     public int handleSyscall(int syscall, int a0, int a1, int a2, int a3) {
 	switch (syscall) {
 	case syscallHalt:
-	    return handleHalt();
+		return handleHalt();
+	
+	case syscallExec:
+		return handleExec(a0, a1, a2);
 
+	case syscallJoin:
+		return handleJoin(a0, a1);
+		
+	case syscallExit:
+		return handleExit(a0);
 
 	default:
 	    Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -445,5 +588,19 @@ public class UserProcess {
     private int argc, argv;
 	
     private static final int pageSize = Processor.pageSize;
-    private static final char dbgProcess = 'a';
+	private static final char dbgProcess = 'a';
+	
+	private OpenFile[] descriptors;
+	private OpenFile stdin;
+	private OpenFile stdout;
+
+	private UserProcess parent;
+	private LinkedList < UserProcess > children = new LinkedList < UserProcess > ();
+	private HashMap < Integer, Integer > children_status = new HashMap < Integer, Integer > ();
+	private Lock status_lock = new Lock();
+
+	private static Lock count_lock = new Lock();
+	private UThread thread;
+	private static int count = 0;
+	private int PID;
 }
