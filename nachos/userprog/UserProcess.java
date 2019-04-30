@@ -495,7 +495,7 @@ public class UserProcess {
 			}
 		if(id==-1)return -1;else
 		{
-			OpenFile file=ThreadedKernel.fileSystem.open(name,false);
+			OpenFile file=ThreadedKernel.fileSystem.open(name,true);
 			if(file==null)return -1;
 			descriptors[id]=file;
 			return id;
