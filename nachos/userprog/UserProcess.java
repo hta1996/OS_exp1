@@ -527,7 +527,9 @@ public class UserProcess {
 	}
 	private int handleRead(int id,int fbuf,int size)
 	{
+		//System.out.println("R1" + id + " " + fbuf + " " + size);
 		if(!checkExist(id))return -1;
+		//System.out.println("R2" + id + " " + fbuf + " " + size);
 		if(size<0)return -1;
 		OpenFile file=descriptors[id];
 		int length=0;
@@ -540,8 +542,9 @@ public class UserProcess {
 	
 	private int handleWrite(int id,int fbuf,int size)
 	{
-	    //System.out.println("" + id + " " + fbuf + " " + size);
+	    //System.out.println("W1" + id + " " + fbuf + " " + size);
 		if(!checkExist(id))return -1;
+		//System.out.println("W2" + id + " " + fbuf + " " + size);
 		if(size<0)return -1;
 		OpenFile file=descriptors[id];
 		int length=0;
@@ -557,6 +560,7 @@ public class UserProcess {
 	{
 		//System.out.println("CLOSE" + id);
 		if(!checkExist(id))return -1;
+		//System.out.println("CLOSE" + id);
 		descriptors[id].close();
 		descriptors[id]=null;
 		return 0;
