@@ -22,19 +22,27 @@ int main()
     printf("Usage: cat <file>\n");
     return 1;
   }*/
-
-  fd = creat("1.in");
-  if (fd==-1) {
+   printf("C: start!\n");
+  
+  fd = open("1.in");
+  if (fd == -1)
+  {
     printf("Unable to open %s\n", "1.in");
     return 1;
   }
+  else
+  {
+  	printf("C: Able to open %s\n", "1.in");
+  }
 
- /* while ((amount = read(fd, buf, BUFSIZE))>0) {
+  while ((amount = read(fd, buf, BUFSIZE))>0) {
+    printf("C: Write to 1 from fd: amount %d\n", amount);
     write(1, buf, amount);
-  }*/
-
+  }
+    printf("M: herehere!\n");
+//*
   close(fd);
-
+//*/
   return 0;
 }
 
