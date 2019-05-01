@@ -3,6 +3,7 @@ package nachos.userprog;
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
+import java.util.LinkedList;
 
 /**
  * A kernel that can support multiple user processes.
@@ -20,13 +21,19 @@ public class UserKernel extends ThreadedKernel {
      * processor's exception handler.
      */
     public void initialize(String[] args) {
-	super.initialize(args);
+        super.initialize(args);
 
-	console = new SynchConsole(Machine.console());
-	
-	Machine.processor().setExceptionHandler(new Runnable() {
-		public void run() { exceptionHandler(); }
-	    });
+        console = new SynchConsole(Machine.console());
+        
+        Machine.processor().setExceptionHandler(new Runnable() {
+            public void run() { exceptionHandler(); }
+            });
+            
+        lock=new Lock();
+
+        int total=Machine.processor().getNumPhysPages();
+        AvailablePages=new LinkedList<Integer>();
+        for(int i=0;i<total;++i)AvailablePages.add((Integer)i);
     }
 
     /**
@@ -99,6 +106,25 @@ public class UserKernel extends ThreadedKernel {
 	KThread.currentThread().finish();
     }
 
+    //ni de JJ xiao
+    //require for one page
+    public static int PageRequire(){
+        int ans=-1;
+        lock.acquire();
+        if(AvailablePages.size()>0){
+            ans=(int)AvailablePages.removeFirst();
+        }
+        lock.release();
+        return ans;
+    }
+
+    //ni shi zhi JJ
+    public static void delete(int Address){
+        lock.acquire();
+        AvailablePages.add((Integer)Address);
+        lock.release();
+    }
+
     /**
      * Terminate this kernel. Never returns.
      */
@@ -111,4 +137,9 @@ public class UserKernel extends ThreadedKernel {
 
     // dummy variables to make javac smarter
     private static Coff dummy1 = null;
+
+    //lock used when allocating/deleting pages.
+    private static Lock lock;
+
+    private static LinkedList<Integer> AvailablePages;
 }

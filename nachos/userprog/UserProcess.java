@@ -143,18 +143,34 @@ public class UserProcess {
      */
     public int readVirtualMemory(int vaddr, byte[] data, int offset,
 				 int length) {
-	Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
+						
+		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
 
-	byte[] memory = Machine.processor().getMemory();
-	
-	// for now, just assume that virtual addresses equal physical addresses
-	if (vaddr < 0 || vaddr >= memory.length)
-	    return 0;
+		byte[] memory = Machine.processor().getMemory();
+		
+		// for now, just assume that virtual addresses equal physical addresses
+		if (vaddr < 0 || vaddr >= memory.length)
+			return 0;
 
-	int amount = Math.min(length, memory.length-vaddr);
-	System.arraycopy(memory, vaddr, data, offset, amount);
+		//暴走鸡兽 JJ xiao
+		//read
+		length=Math.min(length, memory.length-vaddr);
+		int amount = 0;
+		int s=vaddr,t=s+length-1;
+		int StartPageNum=Machine.processor().pageFromAddress(s);
+		int EndPageNum=Machine.processor().pageFromAddress(t);
 
-	return amount;
+		for(int i=StartPageNum;i<=EndPageNum;++i){
+			if(!pageTable[i].valid)break;
+
+			int ss=Machine.processor().makeAddress(i, 0);
+			int tt=Machine.processor().makeAddress(i, pageSize-1);
+			int num=Math.min(tt,t)-Math.max(ss,s)+1;
+			int phisic=Machine.processor().makeAddress(pageTable[i].ppn, Math.max(ss,s)-ss);
+			System.arraycopy(memory, phisic, data, offset+amount, num);
+			amount+=num;
+		}
+		return amount;
     }
 
     /**
@@ -186,19 +202,60 @@ public class UserProcess {
      */
     public int writeVirtualMemory(int vaddr, byte[] data, int offset,
 				  int length) {
-	Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
+		Lib.assertTrue(offset >= 0 && length >= 0 && offset+length <= data.length);
 
-	byte[] memory = Machine.processor().getMemory();
-	
-	// for now, just assume that virtual addresses equal physical addresses
-	if (vaddr < 0 || vaddr >= memory.length)
-	    return 0;
+		byte[] memory = Machine.processor().getMemory();
+		
+		// for now, just assume that virtual addresses equal physical addresses
+		if (vaddr < 0 || vaddr >= memory.length)
+			return 0;
+		
+		//暴走鸡兽 JJ xiao
+		//write
+		length=Math.min(length, memory.length-vaddr);
+		int amount = 0;
+		int s=vaddr,t=s+length-1;
+		int StartPageNum=Machine.processor().pageFromAddress(s);
+		int EndPageNum=Machine.processor().pageFromAddress(t);
 
-	int amount = Math.min(length, memory.length-vaddr);
-	System.arraycopy(data, offset, memory, vaddr, amount);
+		for(int i=StartPageNum;i<=EndPageNum;++i){
+			if(!pageTable[i].valid || pageTable[i].readOnly)break;
 
-	return amount;
+			int ss=Machine.processor().makeAddress(i, 0);
+			int tt=Machine.processor().makeAddress(i, pageSize-1);
+			int num=Math.min(tt,t)-Math.max(ss,s)+1;
+			int phisic=Machine.processor().makeAddress(pageTable[i].ppn, Math.max(ss,s)-ss);
+			System.arraycopy(data, offset+amount, memory, phisic, num);
+			amount+=num;
+		}
+		return amount;
     }
+
+	//wo de JJ xiao
+	//release all occuiped pages
+	private void release(){
+		for(int i=0;i<numPages;++i){
+			int ppn=pageTable[i].ppn;
+			UserKernel.delete(ppn);
+			pageTable[i].valid=false;
+		}
+		numPages=0;
+	}
+
+	//wo de JJ hao xiao
+
+	private boolean Allocate(int num, boolean ReadOnly){
+		if(numPages+num>pageTable.length)return false;
+		
+		for(int i=0;i<num;++i){
+			int ppn = UserKernel.PageRequire();
+			if(ppn==-1)return false;
+
+			pageTable[numPages]=new TranslationEntry(numPages, ppn, true, ReadOnly, false, false);
+			numPages++;
+		}
+		return true;
+	}
 
     /**
      * Load the executable with the specified name into this process, and
@@ -211,81 +268,93 @@ public class UserProcess {
      * @return	<tt>true</tt> if the executable was successfully loaded.
      */
     private boolean load(String name, String[] args) {
-	Lib.debug(dbgProcess, "UserProcess.load(\"" + name + "\")");
-	
-	OpenFile executable = ThreadedKernel.fileSystem.open(name, false);
-	if (executable == null) {
-	    Lib.debug(dbgProcess, "\topen failed");
-	    return false;
-	}
+		Lib.debug(dbgProcess, "UserProcess.load(\"" + name + "\")");
+		
+		OpenFile executable = ThreadedKernel.fileSystem.open(name, false);
+		if (executable == null) {
+			Lib.debug(dbgProcess, "\topen failed");
+			return false;
+		}
 
-	try {
-	    coff = new Coff(executable);
-	}
-	catch (EOFException e) {
-	    executable.close();
-	    Lib.debug(dbgProcess, "\tcoff load failed");
-	    return false;
-	}
+		try {
+			coff = new Coff(executable);
+		}
+		catch (EOFException e) {
+			executable.close();
+			Lib.debug(dbgProcess, "\tcoff load failed");
+			return false;
+		}
 
-	// make sure the sections are contiguous and start at page 0
-	numPages = 0;
-	for (int s=0; s<coff.getNumSections(); s++) {
-	    CoffSection section = coff.getSection(s);
-	    if (section.getFirstVPN() != numPages) {
-		coff.close();
-		Lib.debug(dbgProcess, "\tfragmented executable");
-		return false;
-	    }
-	    numPages += section.getLength();
-	}
+		// make sure the sections are contiguous and start at page 0
+		numPages = 0;
+		for (int s=0; s<coff.getNumSections(); s++) {
+			CoffSection section = coff.getSection(s);
+			if (section.getFirstVPN() != numPages) {
+			coff.close();
+			Lib.debug(dbgProcess, "\tfragmented executable");
+			return false;
+			}
+			//maintain numPages inside 'Allocate'. JJ
+			if(!Allocate(section.getLength(),section.isReadOnly())){
+				release();
+				return false;
+			}
+		}
 
-	// make sure the argv array will fit in one page
-	byte[][] argv = new byte[args.length][];
-	int argsSize = 0;
-	for (int i=0; i<args.length; i++) {
-	    argv[i] = args[i].getBytes();
-	    // 4 bytes for argv[] pointer; then string plus one for null byte
-	    argsSize += 4 + argv[i].length + 1;
-	}
-	if (argsSize > pageSize) {
-	    coff.close();
-	    Lib.debug(dbgProcess, "\targuments too long");
-	    return false;
-	}
+		// make sure the argv array will fit in one page
+		byte[][] argv = new byte[args.length][];
+		int argsSize = 0;
+		for (int i=0; i<args.length; i++) {
+			argv[i] = args[i].getBytes();
+			// 4 bytes for argv[] pointer; then string plus one for null byte
+			argsSize += 4 + argv[i].length + 1;
+		}
+		if (argsSize > pageSize) {
+			coff.close();
+			Lib.debug(dbgProcess, "\targuments too long");
+			return false;
+		}
 
-	// program counter initially points at the program entry point
-	initialPC = coff.getEntryPoint();	
+		// program counter initially points at the program entry point
+		initialPC = coff.getEntryPoint();	
 
-	// next comes the stack; stack pointer initially points to top of it
-	numPages += stackPages;
-	initialSP = numPages*pageSize;
+		// next comes the stack; stack pointer initially points to top of it
+		//JJ
+		if(!Allocate(stackPages,false)){
+			release();
+			return false;
+		}
+		initialSP = numPages*pageSize;
 
-	// and finally reserve 1 page for arguments
-	numPages++;
+		// and finally reserve 1 page for arguments
+		//JJ
+		if(!Allocate(1,false)){
+			release();
+			return false;
+		}
 
-	if (!loadSections())
-	    return false;
+		if (!loadSections())
+			return false;
 
-	// store arguments in last page
-	int entryOffset = (numPages-1)*pageSize;
-	int stringOffset = entryOffset + args.length*4;
+		// store arguments in last page
+		int entryOffset = (numPages-1)*pageSize;
+		int stringOffset = entryOffset + args.length*4;
 
-	this.argc = args.length;
-	this.argv = entryOffset;
-	
-	for (int i=0; i<argv.length; i++) {
-	    byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
-	    Lib.assertTrue(writeVirtualMemory(entryOffset,stringOffsetBytes) == 4);
-	    entryOffset += 4;
-	    Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
-		       argv[i].length);
-	    stringOffset += argv[i].length;
-	    Lib.assertTrue(writeVirtualMemory(stringOffset,new byte[] { 0 }) == 1);
-	    stringOffset += 1;
-	}
+		this.argc = args.length;
+		this.argv = entryOffset;
+		
+		for (int i=0; i<argv.length; i++) {
+			byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
+			Lib.assertTrue(writeVirtualMemory(entryOffset,stringOffsetBytes) == 4);
+			entryOffset += 4;
+			Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
+				argv[i].length);
+			stringOffset += argv[i].length;
+			Lib.assertTrue(writeVirtualMemory(stringOffset,new byte[] { 0 }) == 1);
+			stringOffset += 1;
+		}
 
-	return true;
+		return true;
     }
 
     /**
@@ -295,36 +364,46 @@ public class UserProcess {
      *
      * @return	<tt>true</tt> if the sections were successfully loaded.
      */
+	 //Problem 2
     protected boolean loadSections() {
-	if (numPages > Machine.processor().getNumPhysPages()) {
-	    coff.close();
-	    Lib.debug(dbgProcess, "\tinsufficient physical memory");
-	    return false;
-	}
+		if (numPages > Machine.processor().getNumPhysPages()) {
+			coff.close();
+			Lib.debug(dbgProcess, "\tinsufficient physical memory");
+			return false;
+		}
 
-	// load sections
-	for (int s=0; s<coff.getNumSections(); s++) {
-	    CoffSection section = coff.getSection(s);
-	    
-	    Lib.debug(dbgProcess, "\tinitializing " + section.getName()
-		      + " section (" + section.getLength() + " pages)");
+		// load sections
+		for (int s=0; s<coff.getNumSections(); s++) {
+			CoffSection section = coff.getSection(s);
+			
+			Lib.debug(dbgProcess, "\tinitializing " + section.getName()
+				+ " section (" + section.getLength() + " pages)");
 
-	    for (int i=0; i<section.getLength(); i++) {
-		int vpn = section.getFirstVPN()+i;
+			for (int i=0; i<section.getLength(); i++) {
+			int vpn = section.getFirstVPN()+i;
 
-		// for now, just assume virtual addresses=physical addresses
-		section.loadPage(i, vpn);
-	    }
-	}
-	
-	return true;
+			//JJ xiao
+			if(vpn<0 || vpn>=pageTable.length)return false;
+			section.loadPage(i, pageTable[vpn].ppn);
+			}
+		}
+		
+		return true;
     }
 
     /**
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-    }    
+		release();
+		for(int i=0;i<16;++i){
+			if(descriptors[i]!=null){
+				descriptors[i].close();
+				descriptors[i]=null;
+			}
+		}
+		coff.close();
+    }
 
     /**
      * Initialize the processor's registers in preparation for running the

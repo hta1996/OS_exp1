@@ -302,6 +302,10 @@ public class PriorityScheduler extends Scheduler {
 		*
 		* @param	thread	the thread this state belongs to.
 		*/
+		public ThreadState()
+		{
+			
+		}
 		public ThreadState(KThread thread) {
 			this.thread = thread;
 
