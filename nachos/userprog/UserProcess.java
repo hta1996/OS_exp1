@@ -446,7 +446,7 @@ public class UserProcess {
 		UserProcess child = null;
 		for(int i = 0; i < children.size(); i++)
 		{
-			if(children.get(i).PID == PID)
+			if(children.get(i).PID == processID)
 			{
 				child = children.get(i);
 				break;
