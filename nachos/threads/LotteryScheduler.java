@@ -80,88 +80,6 @@ public class LotteryScheduler extends PriorityScheduler {
 	return (LotteryThreadState) thread.schedulingState;
     }
 
-
-	//暴走鸡兽
-	public static void selfTest() {
-		Lock lock1 = new Lock();
-		Lock lock2 = new Lock();
-		Runnable r1 = new Runnable() {
-			@Override
-			public void run() {
-				System.out.println("ji13");
-				lock2.acquire();
-				System.out.println("ji14");
-				lock1.acquire();
-				System.out.println("ji15");
-				KThread.yield();
-				System.out.println("ji16");
-				lock1.release();
-				System.out.println("ji17");
-				lock2.release();
-				System.out.println("ji18");
-			}
-		};
-		Runnable r2 = new Runnable() {
-			@Override
-			public void run() {
-				System.out.println("ji19");
-				KThread.yield();
-				System.out.println("ji20");
-			}
-		};
-		Runnable r3 = new Runnable() {
-			@Override
-			public void run() {
-				System.out.println("ji21");
-				lock2.acquire();
-				System.out.println("ji22");
-				KThread.yield();
-				System.out.println("ji23");
-				lock2.release();
-				System.out.println("ji24");
-			}
-		};
-		KThread t1 = new KThread(r1).setName("T1");
-		KThread t2 = new KThread(r2).setName("T2");
-		KThread t3 = new KThread(r3).setName("T3");
-		boolean status = Machine.interrupt().disable();
-		ThreadedKernel.scheduler.setPriority(t1, 2);
-		ThreadedKernel.scheduler.setPriority(t2, 5);
-		ThreadedKernel.scheduler.setPriority(t3, 5);
-		Machine.interrupt().restore(status);
-		//开始运行
-		
-		System.out.println("ji1");
-		lock1.acquire();
-		System.out.println("ji2");
-		KThread.yield();
-		System.out.println("ji3");
-		t1.fork();
-		KThread.yield();
-		System.out.println("ji4");
-		t3.fork();
-		System.out.println("ji5");
-		KThread.yield();
-		System.out.println("ji6");
-		t2.fork();
-		KThread.yield();
-		System.out.println("ji7");
-		boolean status2 = Machine.interrupt().disable();
-		ThreadedKernel.scheduler.setPriority(t3, 0);
-		Machine.interrupt().restore(status2);
-		System.out.println("ji8");
-		KThread.yield();
-		System.out.println("ji9");
-		lock1.release();
-		System.out.println("ji10");
-		KThread.yield();
-		System.out.println("ji11");
-		t3.join();
-		System.out.println("ji12");
-
-		ThreadedKernel.alarm.waitUntil(100);
-}
-
     /**
      * A <tt>ThreadQueue</tt> that sorts threads by priority.
      */
@@ -185,7 +103,7 @@ public class LotteryScheduler extends PriorityScheduler {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			// implement me
 			//暴走鸡兽
-			ThreadState tmp=pickNextThread();
+			LotteryThreadState tmp=pickNextThread();
 			if(tmp==null)return null;
 			return tmp.thread;
 		}
@@ -197,10 +115,15 @@ public class LotteryScheduler extends PriorityScheduler {
 		* @return	the next thread that <tt>nextThread()</tt> would
 		*		return.
 		*/
-		protected ThreadState pickNextThread() {
+		protected LotteryThreadState pickNextThread() {
 			//暴走鸡兽
 			// implement me
-
+            //remove resource holder
+			if(ResourceHolder!=null){
+				if(ResourceHolder.myQueue.indexOf(this)!=-1)
+                    ResourceHolder.myQueue.remove(this);
+				ResourceHolder.Lottery_update();
+			}
 			LotteryThreadState Answer=null;
 
 
@@ -222,10 +145,15 @@ public class LotteryScheduler extends PriorityScheduler {
                     break;
                 }
 			}
-
 			thisQueue.remove(Answer);
 			Answer.MyWaitingQueue=null;
-			if(ResourceHolder!=null)ResourceHolder.Lottery_update();
+			ResourceHolder=Answer;
+            Answer.myQueue.add(this);
+            Answer.Lottery_update();
+		//	System.out.println(total_ticket+" "+taoan_huang);
+        //    System.out.println(Answer.thread.getName());
+		//	System.out.println(thisQueue.size());
+			
 			return Answer;
 		}
 		
@@ -318,6 +246,7 @@ public class LotteryScheduler extends PriorityScheduler {
 			if(MyWaitingQueue!=null && MyWaitingQueue.ResourceHolder!=null&&
 				MyWaitingQueue.transferPriority==true){
 				EffectivePriority=total_tickets;
+                //System.out.println(MyWaitingQueue.ResourceHolder.thread.getName());
 				MyWaitingQueue.ResourceHolder.Lottery_update();
 			}
 			EffectivePriority=total_tickets;
@@ -358,6 +287,9 @@ public class LotteryScheduler extends PriorityScheduler {
 		* @see	nachos.threads.ThreadQueue#nextThread
 		*/
 		public void acquire(LotteryQueue waitQueue) {
+            Lib.assertTrue(Machine.interrupt().disabled());
+                
+            Lib.assertTrue(waitQueue.thisQueue.isEmpty());
 			//暴走鸡兽
 			// implement me
 			if(waitQueue.ResourceHolder!=null){
