@@ -13,7 +13,10 @@ int main()
 {
   long i = 0;
   long s = 0;
-  //printf("YES\n");
+  long fd;
+  printf("YES\n");
+  fd = open("1.in");
+  //if (fd != -1) close(fd);
   //*
   for (i = 0; i < 10000; i++)
   {
