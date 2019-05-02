@@ -26,6 +26,8 @@ public class UserProcess {
      */
     public UserProcess() {
 	int numPhysPages = Machine.processor().getNumPhysPages();
+	//System.out.println("#Pages " + numPhysPages);
+
 	pageTable = new TranslationEntry[numPhysPages];
 	for (int i=0; i<numPhysPages; i++)
 		pageTable[i] = new TranslationEntry(i,i, true,false,false,false);
@@ -66,8 +68,9 @@ public class UserProcess {
 	if (!load(name, args))
 	    return false;
 	
-	new UThread(this).setName(name).fork();
-
+	
+    thread = (UThread) (new UThread(this).setName(name));
+    thread.fork();
 	return true;
     }
 
@@ -482,9 +485,7 @@ public class UserProcess {
 			Lib.debug(dbgProcess, "EXEC ERROR: File type Error!");
 			return -1;
 		}
-
-		System.out.println("Execute " + file_name + " "  + argc + " " + argv_vad);
-
+		//System.out.println("Execute " + file_name + " "  + argc + " " + argv_vad);
 		String[] arg = new String[argc];
 		for (int i = 0; i < argc; i++)
 		{
@@ -506,7 +507,7 @@ public class UserProcess {
 		UserProcess child = UserProcess.newUserProcess();
 		if(!child.execute(file_name, arg))
 		{
-			Lib.debug(dbgProcess, "EXEC ERROR: Can not run in a child process!");
+			Lib.debug(dbgProcess, "EXEC ERROR: Can not run a child process: " + file_name + "!");
 			return -1;
 		}
 		child.parent = this;
@@ -517,6 +518,7 @@ public class UserProcess {
 	//int join(int processID, int *status);
 	private int handleJoin(int processID, int status_vad)
 	{
+		//System.out.println("Join " + processID + " " + status_vad);
 		if (processID < 0 || status_vad < 0)
 		{
 			Lib.debug(dbgProcess, "JOIN ERROR: Parameters are invalid!");
@@ -531,16 +533,20 @@ public class UserProcess {
 				break;
 			}
 		}
+		//System.out.println("Child " + child);
 		if(child == null)
 		{
 			Lib.debug(dbgProcess, "JOIN ERROR: No such child!");
 			return -1;
 		}
+		//System.out.println("????????????: " + child.thread);
 		child.thread.join();
 		child.parent = null;
 		children.remove(child);
 		status_lock.acquire();
+		//System.out.println("????????????");
 		Integer child_status = children_status.get(child.PID);
+		//System.out.println("Child_status " + child_status);
 		status_lock.release();
 		if(child_status == null)
 		{

@@ -23,6 +23,6 @@ int main()
     s += i % 3;
   }//*/
   //halt();
-  //printf("%d\n", s);
+  printf("Ans is %d\n", s);
   return 0;
 }
